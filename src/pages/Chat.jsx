@@ -4,27 +4,13 @@ import remarkGfm from 'remark-gfm';
 import './Chat.css';
 import AuthModal from '../components/AuthModal.jsx';
 import ApiKeyModal from '../components/ApiKeyModal.jsx';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal.jsx';
 import { HiOutlineDocumentText } from "react-icons/hi";
 import { LuBrainCircuit } from "react-icons/lu";
 import { RiVoiceAiLine } from "react-icons/ri";
-
-
-// Confirmation modal component
-function ConfirmDeleteModal({ open, onClose, onConfirm, conversation }) {
-  if (!open) return null;
-  return (
-    <div className="modal-overlay">
-      <div className="modal confirm-delete-modal">
-        <h3>Delete Conversation</h3>
-        <p>Are you sure you want to delete this conversation?</p>
-        <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-danger" onClick={() => onConfirm(conversation)}>Delete</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import CodeBlock from '../components/CodeBlock.jsx';
+import Sidebar from '../components/Sidebar.jsx';
+import ChatHeader from '../components/ChatHeader.jsx';
 
 export default function Chat() {
   const [messages, setMessages] = useState([]);
@@ -291,44 +277,6 @@ export default function Chat() {
     setProviderDropdownOpen(false);
   };
 
-  // Function to handle code block rendering with copy button
-  const CodeBlock = ({ children, className, node, ...props }) => {
-    const codeRef = useRef(null);
-    const buttonId = `copy-button-${Math.random().toString(36).substr(2, 9)}`;
-    
-    const copyToClipboard = () => {
-      if (codeRef.current) {
-        const code = codeRef.current.textContent;
-        navigator.clipboard.writeText(code)
-          .then(() => {
-            setCopiedButtonId(buttonId);
-            // Reset the "Copied!" text after 2 seconds
-            setTimeout(() => {
-              setCopiedButtonId(null);
-            }, 2000);
-          })
-          .catch(err => console.error('Failed to copy code: ', err));
-      }
-    };
-
-    const language = className ? className.replace('language-', '') : '';
-    
-    return (
-      <pre className={className}>
-        <button
-          id={buttonId}
-          className={`copy-code-button ${copiedButtonId === buttonId ? 'copied' : ''}`}
-          onClick={copyToClipboard}
-        >
-          {copiedButtonId === buttonId ? 'Copied!' : 'Copy'}
-        </button>
-        <code ref={codeRef} className={className}>
-          {children}
-        </code>
-      </pre>
-    );
-  };
-
   // Textarea auto-resize function
   const handleInputChange = (e) => {
     setInput(e.target.value);
@@ -341,78 +289,30 @@ export default function Chat() {
 
   return (
     <div className="chat-layout">
-      <aside className={`chat-sidebar ${showSidebar ? 'open' : 'closed'}`}>
-        <div className="sidebar-header">
-          <h3>Conversations</h3>
-        </div>
-        <ul className="conversation-list">
-          {conversations.slice().reverse().map(conv => (
-            <li
-              key={conv.ConversationId}
-              title={conv.lastMessage}
-              className="conversation-list-item"
-            >
-              <span
-                className="conversation-title"
-                onClick={() => fetchConversationDetail(conv.ConversationId)}
-              >
-                {truncate(conv.lastMessage)}
-              </span>
-              <button
-                className="delete-conversation-btn"
-                title="Delete conversation"
-                onClick={e => { e.stopPropagation(); handleOpenDeleteModal(conv); }}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-        {/* Footer with new conversation button */}
-        <div className="sidebar-footer">
-          <button className="btn btn-outline" onClick={handleNewConversation}>
-            New Conversation
-          </button>
-        </div>
-      </aside>
+      <Sidebar
+        showSidebar={showSidebar}
+        conversations={conversations}
+        fetchConversationDetail={fetchConversationDetail}
+        truncate={truncate}
+        handleOpenDeleteModal={handleOpenDeleteModal}
+        handleNewConversation={handleNewConversation}
+      />
       <div className="chat-main">
-        <div className="chat-header">
-          <div className="chat-header-left">
-            <button className="sidebar-toggle" onClick={handleToggleSidebar}>☰</button>
-            <div className="header-title-container">
-              <h2>OWrapWeb</h2>
-              <div className="model-dropdown-container" ref={modelRef}>
-                <button className="btn btn-secondary model-dropdown-button" onClick={handleToggleModelDropdown}>
-                  Model: {modelsList.find(m => m.id === selectedModel)?.name || 'Select Model'} ▼
-                </button>
-                {modelDropdownOpen && (
-                  <ul className="model-dropdown">
-                    {modelsList.map(model => (
-                      <li key={model.id} onClick={() => handleSelectModel(model.id)}>
-                        {model.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="profile-container" ref={profileRef}>
-            <button className="btn btn-secondary profile-button" onClick={handleToggleProfile}>
-              {userEmail ? userEmail.slice(0, 2).toUpperCase() : <span role="img" aria-label="profile">👤</span>}
-            </button>
-            {profileDropdownOpen && (
-              <ul className="profile-dropdown">
-                <li onClick={handleOpenApiKeyModal}>Set API Keys</li>
-                {userEmail ? (
-                  <li>Logged in as {userEmail}</li>
-                ) : (
-                  <li onClick={handleOpenAuthModal}>Sign In / Sign Up</li>
-                )}
-              </ul>
-            )}
-          </div>
-        </div>
+        <ChatHeader
+          modelDropdownOpen={modelDropdownOpen}
+          modelRef={modelRef}
+          modelsList={modelsList}
+          selectedModel={selectedModel}
+          handleToggleSidebar={handleToggleSidebar}
+          handleToggleModelDropdown={handleToggleModelDropdown}
+          handleSelectModel={handleSelectModel}
+          userEmail={userEmail}
+          profileDropdownOpen={profileDropdownOpen}
+          profileRef={profileRef}
+          handleToggleProfile={handleToggleProfile}
+          handleOpenApiKeyModal={handleOpenApiKeyModal}
+          handleOpenAuthModal={handleOpenAuthModal}
+        />
         <div className="chat-messages">
           {messages.length === 0 && userEmail ? (
             <div className="chat-welcome">
@@ -425,7 +325,9 @@ export default function Chat() {
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      code: CodeBlock
+                      code: (props) => (
+                        <CodeBlock {...props} copiedButtonId={copiedButtonId} setCopiedButtonId={setCopiedButtonId} />
+                      )
                     }}
                   > 
                     {msg.text}
