@@ -29,7 +29,17 @@ export default function ChatHeader({
               <ul className="model-dropdown">
                 {modelsList.map(model => (
                   <li key={model.id} onClick={() => handleSelectModel(model.id)}>
-                    {model.name}
+                    <div>{model.name}</div>
+                    {(model.inputPrice || model.outputPrice) && (
+                      <div style={{ fontSize: '0.8em', color: '#888' }}>
+                        {model.inputPrice && (
+                          <span>↓ ${(+model.inputPrice / 10000).toFixed(2)} / 1M&nbsp;</span>
+                        )}
+                        {model.outputPrice && (
+                          <span>↑ ${(+model.outputPrice / 10000).toFixed(2)} / 1M</span>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

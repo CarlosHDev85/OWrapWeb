@@ -542,7 +542,10 @@
   margin: 5px 0 0 0; /* Add slight top margin */
   padding: 8px 0;
   box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-  min-width: 160px;
+  min-width: 260px; /* wider */
+  max-width: 340px; /* optional: limit max width */
+  max-height: 340px; /* limit height */
+  overflow-y: auto; /* scrollable if too tall */
   z-index: 100;
 }
 

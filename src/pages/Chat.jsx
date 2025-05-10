@@ -32,6 +32,8 @@ export default function Chat() {
   const [copiedButtonId, setCopiedButtonId] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState(null);
+  const [showReasoningFor, setShowReasoningFor] = useState({}); // {msgId: bool}
+  const reasoningRefs = useRef({});
 
   // Helper: truncate text to single-line preview
   const truncate = (str, len = 25) => str && str.length > len ? str.slice(0, len) + '...' : str;
@@ -51,12 +53,17 @@ export default function Chat() {
       if (providerRef.current && !providerRef.current.contains(event.target)) {
         setProviderDropdownOpen(false);
       }
+      Object.entries(reasoningRefs.current).forEach(([msgId, ref]) => {
+        if (ref && showReasoningFor[msgId] && !ref.contains(event.target)) {
+          setShowReasoningFor(r => ({ ...r, [msgId]: false }));
+        }
+      });
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [profileRef, modelRef, providerRef]);
+  }, [profileRef, modelRef, providerRef, showReasoningFor]);
 
   useEffect(() => {
     const cacheKey = `models_${selectedProvider}`;
@@ -88,7 +95,12 @@ export default function Chat() {
         } else {
           modelsData = [];
         }
-        const models = modelsData.map(item => ({ id: item.ModelName, name: item.ModelName }));
+        const models = modelsData.map(item => ({
+          id: item.ModelName,
+          name: item.ModelName,
+          inputPrice: item.InputPrice,
+          outputPrice: item.OutputPrice
+        }));
         setModelsList(models);
         sessionStorage.setItem(cacheKey, JSON.stringify(models));
         if (!models.find(m => m.id === selectedModel) && models.length) {
@@ -140,11 +152,18 @@ export default function Chat() {
         : result;
       if (data.error) throw new Error(data.error);
       // Transform API messages to UI format
-      const uiMessages = data.messages.map((m, idx) => ({
-        id: idx + 1,
-        sender: m.role === 'assistant' ? 'ai' : 'user',
-        text: m.content
-      }));
+      // If reasoning is present, attach to the ai message
+      const uiMessages = data.messages.map((m, idx) => {
+        const msg = {
+          id: idx + 1,
+          sender: m.role === 'assistant' ? 'ai' : 'user',
+          text: m.content
+        };
+        if (m.role === 'assistant' && m.reasoning) {
+          msg.reasoning = m.reasoning;
+        }
+        return msg;
+      });
       setMessages(uiMessages);
       setConversationId(data.ConversationId);
     } catch (err) {
@@ -224,7 +243,13 @@ export default function Chat() {
       if (!conversationId && data.ConversationId) {
         setConversationId(data.ConversationId);
       }
-      const aiMsg = { id: Date.now() + 1, sender: 'ai', text: data.completion || 'No response' };
+      // Attach reasoning if present
+      const aiMsg = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: data.completion || 'No response',
+        ...(data.reasoning ? { reasoning: data.reasoning } : {})
+      };
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
       console.error('Failed to send message:', err);
@@ -332,6 +357,28 @@ export default function Chat() {
                   > 
                     {msg.text}
                   </ReactMarkdown>
+                  {/* Reasoning toggle for AI messages */}
+                  {msg.sender === 'ai' && msg.reasoning && (
+                    <div style={{ fontSize: '0.85em', color: '#aaa', marginTop: 6, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => setShowReasoningFor(r => ({ ...r, [msg.id]: !r[msg.id] }))}
+                    >
+                      {showReasoningFor[msg.id] ? 'Hide reasoning ▲' : 'Show reasoning ▼'}
+                    </div>
+                  )}
+                  {msg.sender === 'ai' && msg.reasoning && showReasoningFor[msg.id] && (
+                    <div
+                      ref={el => { reasoningRefs.current[msg.id] = el; }}
+                      style={{ fontSize: '0.95em', color: '#b6ffb6', background: '#181f18', borderRadius: 6, padding: '8px 12px', marginTop: 4, whiteSpace: 'pre-wrap', position: 'relative' }}
+                    >
+                      {msg.reasoning}
+                      <div
+                        style={{ fontSize: '0.85em', color: '#aaa', marginTop: 10, cursor: 'pointer', userSelect: 'none', textAlign: 'right' }}
+                        onClick={() => setShowReasoningFor(r => ({ ...r, [msg.id]: false }))}
+                      >
+                        Hide reasoning ▲
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {isThinking && (
