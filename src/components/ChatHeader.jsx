@@ -1,5 +1,6 @@
 import React from 'react';
 import { LuBrainCircuit } from "react-icons/lu";
+import { TbEye } from "react-icons/tb";
 
 export default function ChatHeader({
   modelDropdownOpen,
@@ -30,11 +31,16 @@ export default function ChatHeader({
               <ul className="model-dropdown">
                 {modelsList.map(model => (
                   <li key={model.id} onClick={() => handleSelectModel(model.id)}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      {model.name}
-                      {model.reasoning && (
-                        <LuBrainCircuit size={16} color="purple" style={{ marginLeft: 4 }} />
-                      )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>{model.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        {model.reasoning && (
+                          <LuBrainCircuit size={16} color="purple" style={{ marginLeft: 0 }} />
+                        )}
+                        {model.vision && (
+                          <TbEye size={20} color="blue" style={{ marginLeft: 0 }} />
+                        )}
+                      </div>
                     </div>
                     {(model.inputPrice || model.outputPrice) && (
                       <div style={{ fontSize: '0.8em', color: '#888' }}>

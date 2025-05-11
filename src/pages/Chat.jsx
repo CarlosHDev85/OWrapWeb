@@ -105,7 +105,8 @@ export default function Chat() {
           name: item.ModelName,
           inputPrice: item.InputPrice,
           outputPrice: item.OutputPrice,
-          reasoning: item.Reasoning || false
+          reasoning: item.Reasoning || false,
+          vision: item.Vision || false,
         }));
         setModelsList(models);
         sessionStorage.setItem(cacheKey, JSON.stringify(models));
