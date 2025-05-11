@@ -11,6 +11,9 @@ import { RiVoiceAiLine } from "react-icons/ri";
 import CodeBlock from '../components/CodeBlock.jsx';
 import Sidebar from '../components/Sidebar.jsx';
 import ChatHeader from '../components/ChatHeader.jsx';
+import AssistantsModal from '../components/AssistantsModal.jsx';
+import { BiSolidSend } from "react-icons/bi";
+
 
 export default function Chat() {
   const [messages, setMessages] = useState([]);
@@ -27,7 +30,9 @@ export default function Chat() {
   const [userEmail, setUserEmail] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [modelsList, setModelsList] = useState([]);
+  const [reasoningOnly, setReasoningOnly] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showAssistantsModal, setShowAssistantsModal] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [copiedButtonId, setCopiedButtonId] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -99,7 +104,8 @@ export default function Chat() {
           id: item.ModelName,
           name: item.ModelName,
           inputPrice: item.InputPrice,
-          outputPrice: item.OutputPrice
+          outputPrice: item.OutputPrice,
+          reasoning: item.Reasoning || false
         }));
         setModelsList(models);
         sessionStorage.setItem(cacheKey, JSON.stringify(models));
@@ -199,6 +205,13 @@ export default function Chat() {
     }
     const userMsg = { id: Date.now(), sender: 'user', text: input };
     setMessages(prev => [...prev, userMsg]);
+    // Update lastMessage in sidebar for ongoing conversation
+    if (conversationId) {
+      setConversations(prev => prev.map(c => c.ConversationId === conversationId
+        ? { ...c, lastMessage: userMsg.text }
+        : c
+      ));
+    }
     setInput('');
     setTextareaRows(1);
     setIsThinking(true);
@@ -242,6 +255,9 @@ export default function Chat() {
       // set conversationId once
       if (!conversationId && data.ConversationId) {
         setConversationId(data.ConversationId);
+        // Create new conversation in sidebar locally
+        const newConv = { ConversationId: data.ConversationId, lastMessage: userMsg.text };
+        setConversations(prev => [...prev, newConv]);
       }
       // Attach reasoning if present
       const aiMsg = {
@@ -251,6 +267,13 @@ export default function Chat() {
         ...(data.reasoning ? { reasoning: data.reasoning } : {})
       };
       setMessages(prev => [...prev, aiMsg]);
+      // Update stub conversation lastMessage with AI response
+      if (data.ConversationId) {
+        setConversations(prev => prev.map(c => c.ConversationId === data.ConversationId
+          ? { ...c, lastMessage: aiMsg.text }
+          : c
+        ));
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
       const errorMsg = { id: Date.now() + 1, sender: 'ai', text: `Error: ${err.message}` };
@@ -277,9 +300,25 @@ export default function Chat() {
     setConversationToDelete(null);
   };
 
-  const handleConfirmDelete = (conv) => {
+  const handleConfirmDelete = async (conv) => {
+    // call deleteConversation API
+    try {
+      const response = await fetch(
+        'https://beqb65iu09.execute-api.us-east-1.amazonaws.com/conversationsAPI/deleteConversation',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ UserId: userEmail, ConversationId: conv.ConversationId }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`Network response was not ok (${response.status})`);
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+    // update local state
     setConversations(prev => prev.filter(c => c.ConversationId !== conv.ConversationId));
-    // If the deleted conversation is currently open, reset
     if (conversationId === conv.ConversationId) {
       setConversationId(null);
       setMessages([]);
@@ -312,6 +351,21 @@ export default function Chat() {
     setTextareaRows(newRows);
   };
 
+  // Filter models based on reasoningOnly toggle
+  const filteredModels = reasoningOnly
+    ? modelsList.filter(m => m.reasoning)
+    : modelsList;
+
+  // Auto-select a reasoning model when reasoningOnly toggled on if current isn't reasoning
+  useEffect(() => {
+    if (reasoningOnly) {
+      const first = filteredModels[0];
+      if (first && first.id !== selectedModel) {
+        setSelectedModel(first.id);
+      }
+    }
+  }, [reasoningOnly, filteredModels]);
+
   return (
     <div className="chat-layout">
       <Sidebar
@@ -326,7 +380,7 @@ export default function Chat() {
         <ChatHeader
           modelDropdownOpen={modelDropdownOpen}
           modelRef={modelRef}
-          modelsList={modelsList}
+          modelsList={filteredModels}
           selectedModel={selectedModel}
           handleToggleSidebar={handleToggleSidebar}
           handleToggleModelDropdown={handleToggleModelDropdown}
@@ -402,11 +456,17 @@ export default function Chat() {
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
                 rows={textareaRows}
               />
-              <button className="btn btn-primary" onClick={handleSend}>Send</button>
+              <button className="btn btn-primary" onClick={handleSend}><BiSolidSend /></button>
             </div>
             <div className="chat-input-buttons">
               <button className="btn btn-secondary"><HiOutlineDocumentText size={20} /></button>
-              <button className="btn btn-secondary"><LuBrainCircuit size={20}/></button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setReasoningOnly(prev => !prev)}
+                style={reasoningOnly ? { color: 'purple' } : {}}
+              >
+                <LuBrainCircuit size={20} />
+              </button>
               <button className="btn btn-secondary"><RiVoiceAiLine size={20}/></button>
             </div>
           </div>
@@ -424,10 +484,20 @@ export default function Chat() {
               </ul>
             )}
           </div>
+          {userEmail && selectedProvider === 'OpenAI' && (
+            <button
+              className="btn btn-secondary"
+              style={{ marginLeft: '0.5em', alignSelf: 'center' }}
+              onClick={() => setShowAssistantsModal(true)}
+            >
+              Assistants
+            </button>
+          )}
         </div>
       </div>
       {showAuthModal && <AuthModal onClose={handleCloseAuthModal} onLogin={handleLogin} />}
       {showApiKeyModal && <ApiKeyModal onClose={handleCloseApiKeyModal} />}
+      {showAssistantsModal && <AssistantsModal onClose={() => setShowAssistantsModal(false)} />}
       {/* Confirmation modal for deleting conversation */}
       <ConfirmDeleteModal
         open={deleteModalOpen}

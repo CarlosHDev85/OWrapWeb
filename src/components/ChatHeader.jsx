@@ -1,4 +1,5 @@
 import React from 'react';
+import { LuBrainCircuit } from "react-icons/lu";
 
 export default function ChatHeader({
   modelDropdownOpen,
@@ -29,7 +30,12 @@ export default function ChatHeader({
               <ul className="model-dropdown">
                 {modelsList.map(model => (
                   <li key={model.id} onClick={() => handleSelectModel(model.id)}>
-                    <div>{model.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {model.name}
+                      {model.reasoning && (
+                        <LuBrainCircuit size={16} color="purple" style={{ marginLeft: 4 }} />
+                      )}
+                    </div>
                     {(model.inputPrice || model.outputPrice) && (
                       <div style={{ fontSize: '0.8em', color: '#888' }}>
                         {model.inputPrice && (

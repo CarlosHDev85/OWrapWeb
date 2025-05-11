@@ -564,7 +564,8 @@
 /* Provider Dropdown Styles - Matching model dropdown */
 .provider-dropdown-container {
   position: relative;
-  margin-top: 5px;
+  /* align vertically with input buttons */
+  align-self: center;
 }
 
 .provider-dropdown-button {
