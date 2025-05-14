@@ -108,6 +108,7 @@ export default function Chat() {
           reasoning: item.Reasoning || false,
           vision: item.Vision || false,
         }));
+        models.sort((a, b) => a.outputPrice - b.outputPrice);
         setModelsList(models);
         sessionStorage.setItem(cacheKey, JSON.stringify(models));
         if (!models.find(m => m.id === selectedModel) && models.length) {
@@ -135,7 +136,9 @@ export default function Chat() {
       const data = result.body
         ? (typeof result.body === 'string' ? JSON.parse(result.body) : result.body)
         : result;
-      setConversations(data || []);
+      // Sort by lastUpdated descending
+      const sortedConversations = (data || []).sort((a, b) => Number(b.lastUpdated) - Number(a.lastUpdated));
+      setConversations(sortedConversations);
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
     }
@@ -208,8 +211,9 @@ export default function Chat() {
     setMessages(prev => [...prev, userMsg]);
     // Update lastMessage in sidebar for ongoing conversation
     if (conversationId) {
+      const nowStr = String(Date.now());
       setConversations(prev => prev.map(c => c.ConversationId === conversationId
-        ? { ...c, lastMessage: userMsg.text }
+        ? { ...c, lastMessage: userMsg.text, lastUpdated: nowStr }
         : c
       ));
     }
@@ -256,8 +260,12 @@ export default function Chat() {
       // set conversationId once
       if (!conversationId && data.ConversationId) {
         setConversationId(data.ConversationId);
-        // Create new conversation in sidebar locally
-        const newConv = { ConversationId: data.ConversationId, lastMessage: userMsg.text };
+        // Create new conversation in sidebar locally with timestamp
+        const newConv = {
+          ConversationId: data.ConversationId,
+          lastMessage: userMsg.text,
+          lastUpdated: String(Date.now())
+        };
         setConversations(prev => [...prev, newConv]);
       }
       // Attach reasoning if present
@@ -270,8 +278,9 @@ export default function Chat() {
       setMessages(prev => [...prev, aiMsg]);
       // Update stub conversation lastMessage with AI response
       if (data.ConversationId) {
+        const nowStr = String(Date.now());
         setConversations(prev => prev.map(c => c.ConversationId === data.ConversationId
-          ? { ...c, lastMessage: aiMsg.text }
+          ? { ...c, lastMessage: aiMsg.text, lastUpdated: nowStr }
           : c
         ));
       }

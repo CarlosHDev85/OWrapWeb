@@ -51,6 +51,16 @@
   background: rgba(57,255,20,0.1);
 }
 
+/* Prevent separators from highlighting on hover */
+.conversation-list li.separator {
+  cursor: default;
+  background: none;
+  pointer-events: none;
+}
+.conversation-list li.separator:hover {
+  background: none;
+}
+
 /* --- Conversation Delete (X) Button Styles --- */
 .conversation-list-item {
   position: relative;
@@ -237,7 +247,7 @@
 
 /* Markdown content styling */
 .chat-message pre {
-  background: #011627; /* Night Owl background */
+  background: rgb(29, 31, 33); /* Night Owl background */
   color: #d6deeb; /* Night Owl default text color */
   padding: 12px;
   border-radius: 8px;

@@ -1,25 +1,24 @@
-import React, { useRef } from 'react';
+import React from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function CodeBlock({ children, className, copiedButtonId, setCopiedButtonId }) {
-  const codeRef = useRef(null);
+  // extract raw code string and language
+  const codeString = Array.isArray(children) ? children.join('') : children;
+  const language = className ? className.replace('language-', '') : '';
   const buttonId = `copy-button-${Math.random().toString(36).substr(2, 9)}`;
 
   const copyToClipboard = () => {
-    if (codeRef.current) {
-      const code = codeRef.current.textContent;
-      navigator.clipboard.writeText(code)
-        .then(() => {
-          setCopiedButtonId(buttonId);
-          setTimeout(() => {
-            setCopiedButtonId(null);
-          }, 2000);
-        })
-        .catch(err => console.error('Failed to copy code: ', err));
-    }
+    navigator.clipboard.writeText(codeString)
+      .then(() => {
+        setCopiedButtonId(buttonId);
+        setTimeout(() => setCopiedButtonId(null), 2000);
+      })
+      .catch(err => console.error('Failed to copy code: ', err));
   };
 
   return (
-    <pre className={className}>
+    <div className="code-block-container">
       <button
         id={buttonId}
         className={`copy-code-button ${copiedButtonId === buttonId ? 'copied' : ''}`}
@@ -27,9 +26,13 @@ export default function CodeBlock({ children, className, copiedButtonId, setCopi
       >
         {copiedButtonId === buttonId ? 'Copied!' : 'Copy'}
       </button>
-      <code ref={codeRef} className={className}>
-        {children}
-      </code>
-    </pre>
+      <SyntaxHighlighter
+        style={atomDark}
+        language={language}
+        showLineNumbers
+      >
+        {codeString}
+      </SyntaxHighlighter>
+    </div>
   );
 }
