@@ -13,7 +13,7 @@ import Sidebar from '../components/Sidebar.jsx';
 import ChatHeader from '../components/ChatHeader.jsx';
 import AssistantsModal from '../components/AssistantsModal.jsx';
 import { BiSolidSend } from "react-icons/bi";
-
+import DocumentModal from '../components/DocumentModal.jsx';
 
 export default function Chat() {
   const [messages, setMessages] = useState([]);
@@ -38,7 +38,16 @@ export default function Chat() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState(null);
   const [showReasoningFor, setShowReasoningFor] = useState({}); // {msgId: bool}
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
   const reasoningRefs = useRef({});
+
+  // Load persisted user session
+  useEffect(() => {
+    const storedEmail = localStorage.getItem('userEmail');
+    if (storedEmail) {
+      setUserEmail(storedEmail);
+    }
+  }, []);
 
   // Helper: truncate text to single-line preview
   const truncate = (str, len = 25) => str && str.length > len ? str.slice(0, len) + '...' : str;
@@ -198,7 +207,17 @@ export default function Chat() {
   const handleCloseApiKeyModal = () => setShowApiKeyModal(false);
 
   const handleLogin = (email) => {
+    // Persist login
     setUserEmail(email);
+    localStorage.setItem('userEmail', email);
+  };
+  // Handle logout and clear persisted session
+  const handleLogout = () => {
+    setUserEmail(null);
+    localStorage.removeItem('userEmail');
+    setConversations([]);
+    setMessages([]);
+    setConversationId(null);
   };
 
   const handleSend = async () => {
@@ -336,6 +355,11 @@ export default function Chat() {
     handleCloseDeleteModal();
   };
 
+  const handleFilesSelected = (files) => {
+    console.log('Selected files:', files);
+    setShowDocumentModal(false);
+  };
+
   const providers = [
     { id: 'OpenAI', name: 'OpenAI' },
     { id: 'XAI', name: 'XAI' },
@@ -401,6 +425,7 @@ export default function Chat() {
           handleToggleProfile={handleToggleProfile}
           handleOpenApiKeyModal={handleOpenApiKeyModal}
           handleOpenAuthModal={handleOpenAuthModal}
+          handleLogout={handleLogout}
         />
         <div className="chat-messages">
           {messages.length === 0 && userEmail ? (
@@ -469,7 +494,7 @@ export default function Chat() {
               <button className="btn btn-primary" onClick={handleSend}><BiSolidSend /></button>
             </div>
             <div className="chat-input-buttons">
-              <button className="btn btn-secondary"><HiOutlineDocumentText size={20} /></button>
+              <button className="btn btn-secondary" onClick={() => setShowDocumentModal(true)}><HiOutlineDocumentText size={20} /></button>
               <button
                 className="btn btn-secondary"
                 onClick={() => setReasoningOnly(prev => !prev)}
@@ -508,6 +533,12 @@ export default function Chat() {
       {showAuthModal && <AuthModal onClose={handleCloseAuthModal} onLogin={handleLogin} />}
       {showApiKeyModal && <ApiKeyModal onClose={handleCloseApiKeyModal} />}
       {showAssistantsModal && <AssistantsModal onClose={() => setShowAssistantsModal(false)} />}
+      {showDocumentModal && (
+        <DocumentModal
+          onClose={() => setShowDocumentModal(false)}
+          onFilesSelected={handleFilesSelected}
+        />
+      )}
       {/* Confirmation modal for deleting conversation */}
       <ConfirmDeleteModal
         open={deleteModalOpen}
