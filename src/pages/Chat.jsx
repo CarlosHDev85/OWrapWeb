@@ -39,7 +39,12 @@ export default function Chat() {
   const [conversationToDelete, setConversationToDelete] = useState(null);
   const [showReasoningFor, setShowReasoningFor] = useState({}); // {msgId: bool}
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const reasoningRefs = useRef({});
+  // remove a file by index
+  const handleRemoveFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   // Load persisted user session
   useEffect(() => {
@@ -355,8 +360,19 @@ export default function Chat() {
     handleCloseDeleteModal();
   };
 
+  // merge selected files, prevent duplicates, limit to 10
   const handleFilesSelected = (files) => {
-    console.log('Selected files:', files);
+    setSelectedFiles(prev => {
+      const names = new Set(prev.map(f => f.name));
+      const combined = [...prev];
+      files.forEach(f => {
+        if (!names.has(f.name) && combined.length < 10) {
+          names.add(f.name);
+          combined.push(f);
+        }
+      });
+      return combined;
+    });
     setShowDocumentModal(false);
   };
 
@@ -494,7 +510,25 @@ export default function Chat() {
               <button className="btn btn-primary" onClick={handleSend}><BiSolidSend /></button>
             </div>
             <div className="chat-input-buttons">
-              <button className="btn btn-secondary" onClick={() => setShowDocumentModal(true)}><HiOutlineDocumentText size={20} /></button>
+              <div className="doc-icon-wrapper">
+                <button className="btn btn-secondary" onClick={() => setShowDocumentModal(true)}>
+                  <HiOutlineDocumentText size={20} />
+                </button>
+                {selectedFiles.length > 0 && <span className="doc-badge">{selectedFiles.length}</span>}
+                {selectedFiles.length > 0 && (
+                  <div className="doc-tooltip">
+                    <ul>
+                      {selectedFiles.map((file, idx) => (
+                        <li key={idx}>
+                          {file.name}
+                          <button className="remove-file" onClick={() => handleRemoveFile(idx)}>×</button>
+                        </li>
+                      ))}
+                    </ul>
+                    {selectedFiles.length >= 10 && <div className="doc-tooltip-note">Max 10 documents</div>}
+                  </div>
+                )}
+              </div>
               <button
                 className="btn btn-secondary"
                 onClick={() => setReasoningOnly(prev => !prev)}
